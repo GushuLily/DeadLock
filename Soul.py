@@ -356,7 +356,7 @@ class ControlWindow(QtWidgets.QWidget):
         # 更新平滑因子
         global smoothing_factor
         smoothing_factor = self.smoothing_slider.value() / 10.0  # 将值缩小为原来的十倍
-        config['Settings']['smoothing_factor'] = smoothing_factor
+        config['Settings']['smoothing_factor'] = str(smoothing_factor)
 
         # 保存配置
         with open(r'.\source\config.ini', 'w') as configfile:
@@ -395,17 +395,22 @@ class ESPApplication(QtWidgets.QApplication):
         # 使用主线程的定时器更新窗口
         self.timer = QtCore.QTimer()
         self.timer.timeout.connect(self.update_window)
-        self.timer.start(16)
+        self.timer.start(10)
+        self.timer
 
     def aiming_loop(self):
         """在后台线程中运行自动瞄准逻辑"""
         while True:
             self.main_loop()  # 执行主要的自动瞄准逻辑
-            # time.sleep(0.001)  # 控制循环频率，避免过度占用 CPU
+            # time.sleep(0.01)  # 控制循环频率，避免过度占用 CPU
 
-    def main_loop(self):
+    def update_window(self):
+        """此函数在主线程中调用以更新窗口"""
+        self.transparent_window.update()
+        time.sleep(0.01)
         self.transparent_window.clear_enemies()
 
+    def main_loop(self):
         # 收集敌人的屏幕坐标和距离信息
         for i in range(1, 16):
             try:
@@ -508,10 +513,6 @@ class ESPApplication(QtWidgets.QApplication):
                         move_mouse(diff_x * (smoothing_factor / 2), diff_y * (smoothing_factor / 2))  # 使用1/2的平滑因子
                     else:
                         move_mouse(diff_x * smoothing_factor, diff_y * smoothing_factor)
-
-    def update_window(self):
-        """此函数在主线程中调用以更新窗口"""
-        self.transparent_window.update()
 
 if __name__ == "__main__":
     app = ESPApplication(sys.argv)
