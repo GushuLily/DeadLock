@@ -21,7 +21,6 @@ view_matrix_address = int(config['GameAddresses']['view_matrix_address'], 16)
 EntityList = int(config['GameAddresses']['entitylist'], 16)
 CCameraManager = int(config['GameAddresses']['ccameraManager'], 16)
 
-aim_assist_threshold = float(config['Settings']['aim_assist_threshold'])
 smoothing_factor = float(config['Settings']['smoothing_factor'])
 
 # 设置要读取的进程
@@ -357,6 +356,7 @@ class ControlWindow(QtWidgets.QWidget):
         # 更新平滑因子
         global smoothing_factor
         smoothing_factor = self.smoothing_slider.value() / 10.0  # 将值缩小为原来的十倍
+        config['Settings']['smoothing_factor'] = smoothing_factor
 
         # 保存配置
         with open(r'.\source\config.ini', 'w') as configfile:
@@ -368,6 +368,7 @@ class ControlWindow(QtWidgets.QWidget):
         view_matrix_address = int(config['GameAddresses']['view_matrix_address'], 16)
         EntityList = int(config['GameAddresses']['entitylist'], 16)
         CCameraManager = int(config['GameAddresses']['ccameramanager'], 16)
+        smoothing_factor = float(config['Settings']['smoothing_factor'])
 
         print("Config updated successfully!")  # 使用打印替代弹窗 
 
@@ -400,7 +401,7 @@ class ESPApplication(QtWidgets.QApplication):
         """在后台线程中运行自动瞄准逻辑"""
         while True:
             self.main_loop()  # 执行主要的自动瞄准逻辑
-            time.sleep(0.001)  # 控制循环频率，避免过度占用 CPU
+            # time.sleep(0.001)  # 控制循环频率，避免过度占用 CPU
 
     def main_loop(self):
         self.transparent_window.clear_enemies()
@@ -426,7 +427,7 @@ class ESPApplication(QtWidgets.QApplication):
         screen_center_x, screen_center_y = 1920 // 2, 1080 // 2
         fov_radius_enemy = self.transparent_window.fov_radius
         fov_radius_soul = 3 * self.transparent_window.fov_radius  # 针对 "soul" 设置更大的 FOV 半径
-        camera_yaw = pm.read_float(camera + 0x48)
+        # camera_yaw = pm.read_float(camera + 0x48)
         view_matrix = get_view_matrix()
         cam_pos = get_cam()
 
@@ -490,19 +491,22 @@ class ESPApplication(QtWidgets.QApplication):
                                 if distance < closest_distance:
                                     closest_distance = distance
                                     closest_target = enemy_pos_vector
+                                    is_soul_target = False
 
                 except Exception as e:
                     pass
 
             # 瞄准最近的目标（敌人或 "soul"）
             if closest_target is not None:
-                closest_angle_diff = calculate_angle_distance(camera_yaw, closest_target)
+                screen_pos = world_to_screen(closest_target, view_matrix, 1920, 1080)
+                if screen_pos:
+                    diff_x = screen_pos[0] - screen_center_x
+                    diff_y = screen_pos[1] - screen_center_y
 
-                if closest_angle_diff > aim_assist_threshold:
-                    screen_pos = world_to_screen(closest_target, view_matrix, 1920, 1080)
-                    if screen_pos:
-                        diff_x = screen_pos[0] - screen_center_x
-                        diff_y = screen_pos[1] - screen_center_y
+                    # 根据目标类型选择不同的平滑因子
+                    if is_soul_target:
+                        move_mouse(diff_x * (smoothing_factor / 2), diff_y * (smoothing_factor / 2))  # 使用1/2的平滑因子
+                    else:
                         move_mouse(diff_x * smoothing_factor, diff_y * smoothing_factor)
 
     def update_window(self):
