@@ -16,10 +16,10 @@ config = configparser.ConfigParser()
 config.read(r'.\source\config.ini')
 
 # 从配置文件中读取变量
-LocalPlayerController = int(config['GameAddresses']['LocalPlayerController'], 16)
+LocalPlayerController = int(config['GameAddresses']['localplayercontroller'], 16)
 view_matrix_address = int(config['GameAddresses']['view_matrix_address'], 16)
-EntityList = int(config['GameAddresses']['EntityList'], 16)
-CCameraManager = int(config['GameAddresses']['CCameraManager'], 16)
+EntityList = int(config['GameAddresses']['entitylist'], 16)
+CCameraManager = int(config['GameAddresses']['ccameraManager'], 16)
 
 aim_assist_threshold = float(config['Settings']['aim_assist_threshold'])
 smoothing_factor = float(config['Settings']['smoothing_factor'])
@@ -231,44 +231,6 @@ def get_designer_name(entity):
     designer_name = read_str(designer_name_address)  # 从内存中读取字符串
     return designer_name  # 返回设计者名称
 
-
-# 获取最接近的 soul
-def get_closest_soul(view_matrix, screen_width, screen_height):
-    closest_distance = float('inf')
-    closest_soul_position = None
-    e1,camera_yaw ,e2 = get_cam()  # 假设你有获取摄像头yaw的函数
-
-    max_ents = get_max_entities()
-
-    for i in range(1, max_ents + 1):
-        entity = get_base_entity_from_index(i)
-        if not entity:
-            continue
-
-        designer_name = get_designer_name(entity)
-        if designer_name != "item_xp":
-            continue
-
-        is_visible = pm.read_uint(entity + 0x30)
-        if is_visible != 1:
-            continue
-
-        soul_ptr = pm.read_longlong(entity + 0x328)
-        soul_world_pos = (pm.read_float(soul_ptr + 0x88), 
-                          pm.read_float(soul_ptr + 0x88 + 4), 
-                          pm.read_float(soul_ptr + 0x88 + 8))
-
-        screen_pos = world_to_screen(soul_world_pos, view_matrix, screen_width, screen_height)
-        if not screen_pos:  # 如果目标不在屏幕上，跳过
-            continue
-
-        angle_distance = calculate_angle_distance(camera_yaw, soul_world_pos)
-        if angle_distance < closest_distance:
-            closest_distance = angle_distance
-            closest_soul_position = soul_world_pos
-
-    return closest_soul_position
-
 # 使用 win32api 的 mouse_event 函数移动鼠标
 def move_mouse(x, y):
     win32api.mouse_event(win32con.MOUSEEVENTF_MOVE, int(x), int(y), 0, 0)
@@ -386,11 +348,11 @@ class ControlWindow(QtWidgets.QWidget):
         self.smoothing_value_label.setText(f"{current_value:.1f}")
 
     def save_config(self):
-        # 更新配置文件中的值
-        config['GameAddresses']['LocalPlayerController'] = self.localplayer_edit.text()
-        config['GameAddresses']['ViewMatrixAddress'] = self.view_matrix_edit.text()
-        config['GameAddresses']['EntityList'] = self.entitylist_edit.text()
-        config['GameAddresses']['CCameraManager'] = self.cameramanager_edit.text()
+        # 更新配置文件中的值，确保键名一致
+        config['GameAddresses']['localplayercontroller'] = self.localplayer_edit.text()
+        config['GameAddresses']['view_matrix_address'] = self.view_matrix_edit.text()
+        config['GameAddresses']['entitylist'] = self.entitylist_edit.text()
+        config['GameAddresses']['ccameramanager'] = self.cameramanager_edit.text()
 
         # 更新平滑因子
         global smoothing_factor
@@ -402,12 +364,12 @@ class ControlWindow(QtWidgets.QWidget):
 
         # 重新读取配置文件，更新全局变量
         global LocalPlayerController, view_matrix_address, EntityList, CCameraManager
-        LocalPlayerController = int(config['GameAddresses']['LocalPlayerController'], 16)
-        view_matrix_address = int(config['GameAddresses']['ViewMatrixAddress'], 16)
-        EntityList = int(config['GameAddresses']['EntityList'], 16)
-        CCameraManager = int(config['GameAddresses']['CCameraManager'], 16)
+        LocalPlayerController = int(config['GameAddresses']['localplayercontroller'], 16)
+        view_matrix_address = int(config['GameAddresses']['view_matrix_address'], 16)
+        EntityList = int(config['GameAddresses']['entitylist'], 16)
+        CCameraManager = int(config['GameAddresses']['ccameramanager'], 16)
 
-        print("Config updated successfully!")  # 使用打印替代弹窗
+        print("Config updated successfully!")  # 使用打印替代弹窗 
 
 
 class ESPApplication(QtWidgets.QApplication):
@@ -463,7 +425,7 @@ class ESPApplication(QtWidgets.QApplication):
         # 获取屏幕中心、FOV 和其他常用数据
         screen_center_x, screen_center_y = 1920 // 2, 1080 // 2
         fov_radius_enemy = self.transparent_window.fov_radius
-        fov_radius_soul = 2 * self.transparent_window.fov_radius  # 针对 "soul" 设置更大的 FOV 半径
+        fov_radius_soul = 3 * self.transparent_window.fov_radius  # 针对 "soul" 设置更大的 FOV 半径
         camera_yaw = pm.read_float(camera + 0x48)
         view_matrix = get_view_matrix()
         cam_pos = get_cam()
